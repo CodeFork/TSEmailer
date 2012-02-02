@@ -1,0 +1,22 @@
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\Newtonsoft.Json.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TerrariaServer.exe
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TShockAPI.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\HttpServer.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\MySql.Data.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\Mono.Data.Sqlite.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TShockAPI.pdb
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TShockAPI.xml
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\HttpServer.pdb
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\HttpServer.xml
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\ResolveAssemblyReference.cache
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TSEmailer.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\bin\Debug\TSEmailer.pdb
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\TSEmailer.dll
+C:\Users\tadieckmann\Documents\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\TSEmailer.pdb
+C:\Users\tadieckmann\Downloads\TShock\ServerPlugins\TSEmailer.dll
+C:\Users\tadieckmann\Downloads\TShock\ServerPlugins\TSEmailer.pdb
+C:\Users\tdieck\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\ResolveAssemblyReference.cache
+C:\Users\tdieck\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\TSEmailer.dll
+C:\TerApps\Bin\TShock\ServerPlugins\TSEmailer.dll
+C:\TerApps\Bin\TShock\ServerPlugins\TSEmailer.pdb
+C:\Users\tdieck\Visual Studio 2010\Projects\TSEmailer\TSEmailer\obj\Debug\TSEmailer.pdb
