@@ -42,6 +42,8 @@ using jsonConfig;
 using TShockAPI;
 using TShockAPI.DB;
 using System.ComponentModel;
+using System.Data;
+using sqlProvider;
 
 namespace TSEmailer
 {
@@ -50,6 +52,7 @@ namespace TSEmailer
     {
         public static jsConfig TSEConfig { get; set; }
         internal static string TSEConfigPath { get { return Path.Combine(TShock.SavePath, "TSEconfig.json"); } }
+        public static TSdb TSESql;
 
         public override Version Version
         {
@@ -81,6 +84,7 @@ namespace TSEmailer
         public override void Initialize()
         {
             SetupConfig();
+            TSESql = new TSdb();
             Commands.ChatCommands.Add(new Command("", OnEmail, "email"));
         }
 
@@ -105,12 +109,14 @@ namespace TSEmailer
                         args.Player.SendMessage("     /email reply [true|false] - Allow/Disallow use sending player's email address as the 'reply-to' address.", ErrColor);
                         args.Player.SendMessage("     /email notify [true|false] - Allow/Disallow sending of email when player joins server.", ErrColor);
                         args.Player.SendMessage("     /email onjoin <user> - Send email to self when <user> has joined the server.", ErrColor);
+                        args.Player.SendMessage("     /email onjoinlist - Get an indexed list of players that send you 'onjoin' emails.", ErrColor);
+                        args.Player.SendMessage("     /email remove <index> - Send email to self when <user> has joined the server.", ErrColor);
                         break;
                     case "settings":
-                        args.Player.SendMessage("/email settings - A work in progress...>", ErrColor);
+                        GetStatus(args.Player);
                         break;
                     case "address":
-                        args.Player.SendMessage("/email address - A work in progress...>", ErrColor);
+                        SetAddress(args.Player, args.Parameters[1]);
                         break;
                     case "players":
                         args.Player.SendMessage("/email players - A work in progress...>", ErrColor);
@@ -128,7 +134,7 @@ namespace TSEmailer
                         args.Player.SendMessage("/email address - A work in progress...>", ErrColor);
                         break;
                     case "onjoin":
-                        args.Player.SendMessage("/email onjoin - A work in progress...>", ErrColor);
+                        SetOnJoin(args.Player, args.Parameters[1]);
                         break;
                     default:
                         args.Player.SendMessage("example: /email <player> <\"Email message body\">", ErrColor);
@@ -145,11 +151,35 @@ namespace TSEmailer
             }
         }
 
-        private void OnEmailStatus(CommandArgs args)
+        private void SetAddress(TSPlayer player, string address)
         {
-            if (args.Player != null)
+            if (player != null)
             {
-                args.Player.SendMessage("'email status' command has not yet been implemented.", Color.Plum);
+                player.SendMessage(TSESql.SetPlayerAddress(player, address), Color.Blue);
+            }
+        }
+
+        private void SetOnJoin(TSPlayer player, string PlayerName)
+        {
+            if (player != null)
+            {
+                player.SendMessage(TSESql.SetOnJoinAddress(player.UserID, PlayerName), Color.Blue);
+            }
+        }
+
+        private void GetStatus(TSPlayer player)
+        {
+            if (player != null)
+            {
+                Color ErrColor = Color.Blue;
+                DataRow dr = TSESql.GetPlayerStatus(player.UserID);
+                player.SendMessage("Your email address: ", ErrColor);
+                player.SendMessage("Your email address: " + dr.ItemArray[3].ToString(), ErrColor);
+                player.SendMessage("Players can email you: " + dr.ItemArray[4].ToString(), ErrColor);
+                player.SendMessage("Admins can email you: " + dr.ItemArray[5].ToString(), ErrColor);
+                player.SendMessage("You can receive email blasts: " + dr.ItemArray[6].ToString(), ErrColor);
+                player.SendMessage("Players can reply directly to your email: " + dr.ItemArray[7].ToString(), ErrColor);
+                player.SendMessage("Allow others to be notified when you join the server: " + dr.ItemArray[8].ToString(), ErrColor);
             }
         }
 
