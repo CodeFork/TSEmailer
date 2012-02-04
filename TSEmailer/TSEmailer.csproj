@@ -37,6 +37,10 @@
     <Reference Include="Community.CsharpSqlite.SQLiteClient">
       <HintPath>..\..\..\..\..\..\TerApps\Bin\TShock\ServerPlugins\Community.CsharpSqlite.SQLiteClient.dll</HintPath>
     </Reference>
+    <Reference Include="Mono.Data.Sqlite, Version=2.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\TerApps\Bin\TShock\ServerPlugins\Mono.Data.Sqlite.dll</HintPath>
+    </Reference>
     <Reference Include="MySql.Data">
       <HintPath>..\..\..\..\..\..\TerApps\Bin\TShock\ServerPlugins\MySql.Data.dll</HintPath>
     </Reference>
@@ -61,6 +65,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="smtpWrapper.cs" />
     <Compile Include="sqlProvider.cs" />
     <Compile Include="jsonConfig.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

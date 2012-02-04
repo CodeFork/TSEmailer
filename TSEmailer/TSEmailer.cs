@@ -42,8 +42,10 @@ using jsonConfig;
 using TShockAPI;
 using TShockAPI.DB;
 using System.ComponentModel;
+using System.Collections.Generic;
 using System.Data;
 using sqlProvider;
+using smtpWrapper;
 
 namespace TSEmailer
 {
@@ -53,6 +55,7 @@ namespace TSEmailer
         public static jsConfig TSEConfig { get; set; }
         internal static string TSEConfigPath { get { return Path.Combine(TShock.SavePath, "TSEconfig.json"); } }
         public static TSdb TSESql;
+        public static TSEsmtp TSEsender;
 
         public override Version Version
         {
@@ -85,6 +88,7 @@ namespace TSEmailer
         {
             SetupConfig();
             TSESql = new TSdb();
+            InitSMTP();
             Commands.ChatCommands.Add(new Command("", OnEmail, "email"));
         }
 
@@ -94,24 +98,8 @@ namespace TSEmailer
 
             if (args.Player != null)
             {
-                args.Player.SendMessage("'email' command has not yet been implemented.", ErrColor);
-                
                 switch (args.Parameters[0].ToString())
                 {
-                    case "help":
-                        args.Player.SendMessage("example: /email <player> <\"Email message body\">", ErrColor);
-                        args.Player.SendMessage("Email Commands:", ErrColor);
-                        args.Player.SendMessage("     /email settings - Displays your current settings.", ErrColor);
-                        args.Player.SendMessage("     /email address <youraddress@yourdomain.com> - Sets your email address.", ErrColor);
-                        args.Player.SendMessage("     /email players [true|false] - Allow/Disallow other players to email directly.", ErrColor);
-                        args.Player.SendMessage("     /email admins [true|false] - Allow/Disallow admins to email directly.", ErrColor);
-                        args.Player.SendMessage("     /email eblast [true|false] - Allow/Disallow receiving email directed to all registered users.", ErrColor);
-                        args.Player.SendMessage("     /email reply [true|false] - Allow/Disallow use sending player's email address as the 'reply-to' address.", ErrColor);
-                        args.Player.SendMessage("     /email notify [true|false] - Allow/Disallow sending of email when player joins server.", ErrColor);
-                        args.Player.SendMessage("     /email onjoin <user> - Send email to self when <user> has joined the server.", ErrColor);
-                        args.Player.SendMessage("     /email onjoinlist - Get an indexed list of players that send you 'onjoin' emails.", ErrColor);
-                        args.Player.SendMessage("     /email remove <index> - Send email to self when <user> has joined the server.", ErrColor);
-                        break;
                     case "settings":
                         GetStatus(args.Player);
                         break;
@@ -136,17 +124,35 @@ namespace TSEmailer
                     case "onjoin":
                         SetOnJoin(args.Player, args.Parameters[1]);
                         break;
-                    default:
-                        args.Player.SendMessage("example: /email <player> <\"Email message body\">", ErrColor);
-                        args.Player.SendMessage("For more email commands: /email help", ErrColor);
+                    case "testemail":
+                        SendTestEmail(args.Parameters[1]);
                         break;
-                }
-
-
-                foreach (string emlParam in args.Parameters.ToArray())
-                {
-                    args.Player.SendMessage("'email' parameter:" + emlParam);
-                
+                    case "help":
+                        args.Player.SendMessage("example: /email <player> <\"Email message body\">", ErrColor);
+                        args.Player.SendMessage("Email Commands:", ErrColor);
+                        args.Player.SendMessage("  /email address <youraddress@yourdomain.com> - Sets your email address.", ErrColor);
+                        args.Player.SendMessage("  /email help1 - Displays more help.", ErrColor);
+                        args.Player.SendMessage("  /email help2 - Displays even more help.", ErrColor);
+                        break;
+                    case "help1": 
+                        args.Player.SendMessage("Email Commands:", ErrColor);
+                        args.Player.SendMessage("  /email settings - Displays your current settings.", ErrColor);
+                        args.Player.SendMessage("  /email address <youraddress@yourdomain.com> - Sets your email address.", ErrColor);
+                        args.Player.SendMessage("  /email players [true|false] - Allow/Disallow other players to email directly.", ErrColor);
+                        args.Player.SendMessage("  /email admins [true|false] - Receive email from admins.", ErrColor);
+                        args.Player.SendMessage("  /email eblast [true|false] - Receive email directed to all registered users.", ErrColor);
+                        break;
+                    case "help2":
+                        args.Player.SendMessage("Email Commands:", ErrColor);
+                        args.Player.SendMessage("  /email reply [true|false] - Users can reply to your email address.", ErrColor);
+                        args.Player.SendMessage("  /email notify [true|false] - Others to be notified when you join the server.", ErrColor);
+                        args.Player.SendMessage("  /email onjoin <user> - Receive an email when <user> has joined the server.", ErrColor);
+                        args.Player.SendMessage("  /email onjoinlist - List of users names that you receive notifications.", ErrColor);
+                        args.Player.SendMessage("  /email remove <user> - Remove user from your notification list.", ErrColor);
+                        break;
+                    default:
+                        SendEmail(args.Player, args.Parameters[1], args.Parameters[2]);
+                        break;
                 }
             }
         }
@@ -155,7 +161,36 @@ namespace TSEmailer
         {
             if (player != null)
             {
-                player.SendMessage(TSESql.SetPlayerAddress(player, address), Color.Blue);
+                if(address != "")
+                {
+                    player.SendMessage(TSESql.SetPlayerAddress(player, address), Color.Blue);
+                }
+                else
+                {
+                    player.SendMessage(TSESql.RemoveAddress(player), Color.Blue);
+                }
+            }
+        }
+
+        private void SendEmail(TSPlayer player, string rcptPlayer, string body)
+        {
+            Color ErrColor = Color.Plum;
+
+            if (TSESql.GetPlayerIndex(player.UserID) != -1)
+            {
+                int rcptIndex = TSESql.GetPlayerIndex(rcptPlayer);
+                if (rcptIndex != -1)
+                {
+                    
+                }
+                else
+                {
+                    player.SendMessage("The player specified isn't registered with the server!", ErrColor);
+                }
+            }
+            else
+            {
+                player.SendMessage("Your email address is not registered with the server!", ErrColor);
             }
         }
 
@@ -172,15 +207,45 @@ namespace TSEmailer
             if (player != null)
             {
                 Color ErrColor = Color.Blue;
-                DataRow dr = TSESql.GetPlayerStatus(player.UserID);
-                player.SendMessage("Your email address: ", ErrColor);
-                player.SendMessage("Your email address: " + dr.ItemArray[3].ToString(), ErrColor);
-                player.SendMessage("Players can email you: " + dr.ItemArray[4].ToString(), ErrColor);
-                player.SendMessage("Admins can email you: " + dr.ItemArray[5].ToString(), ErrColor);
-                player.SendMessage("You can receive email blasts: " + dr.ItemArray[6].ToString(), ErrColor);
-                player.SendMessage("Players can reply directly to your email: " + dr.ItemArray[7].ToString(), ErrColor);
-                player.SendMessage("Allow others to be notified when you join the server: " + dr.ItemArray[8].ToString(), ErrColor);
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index != -1)
+                {
+                    List<SqlValue> settings = TSESql.GetSettings(index);
+                    player.SendMessage("Your email address: " + settings[1].Value.ToString(), ErrColor);
+                    player.SendMessage("Players can email you: " + settings[2].Value.ToString(), ErrColor);
+                    player.SendMessage("Admins can email you: " + settings[3].Value.ToString(), ErrColor);
+                    player.SendMessage("You can receive email blasts: " + settings[4].Value.ToString(), ErrColor);
+                    player.SendMessage("Players can reply directly to your email: " + settings[5].Value.ToString(), ErrColor);
+                    player.SendMessage("Allow others to be notified when you join the server: " + settings[6].Value.ToString(), ErrColor);
+                }
+                else
+                {
+                    player.SendMessage("You have not registered with the server!", ErrColor);
+                }
+                
             }
+        }
+
+        public static void SendTestEmail(string recipient)
+        {
+            try
+            {
+                TSEsender.SendEmail(
+                    recipient,
+                    TSEConfig.smtpaddress,
+                    "Test Subject",
+                    "Test Body");
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("TSEmailer - Error in config file");
+                Console.ForegroundColor = ConsoleColor.Gray;
+                Log.Error("TSEmailer - Config Exception");
+                Log.Error(ex.ToString());
+            }
+            
+
         }
 
         public static void SetupConfig()
@@ -201,6 +266,25 @@ namespace TSEmailer
                 Console.ForegroundColor = ConsoleColor.Gray;
                 Log.Error("TSEmailer - Config Exception");
                 Log.Error(ex.ToString());
+            }
+        }
+
+        public static void InitSMTP()
+        {
+            if (TSEConfig.smtpuser != "")
+            {
+                TSEsender = new TSEsmtp(
+                    TSEConfig.smtpserver,
+                    TSEConfig.smtpport,
+                    TSEConfig.smtpuser,
+                    TSEConfig.smtppass,
+                    TSEConfig.smtptls);
+            }
+            else
+            {
+                TSEsender = new TSEsmtp(
+                    TSEConfig.smtpserver,
+                    TSEConfig.smtpport);
             }
         }
     }

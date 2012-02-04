@@ -7,14 +7,16 @@ namespace jsonConfig
     public class jsConfig
     {
         //Add public variables here (NOT STATIC)
-        public string emailaddress = "";
+        public string smtpaddress = "";
         public string sendas = "";
         public string smtpserver = "";
         public int smtpport = 25;
-        public string mapiserver = "";
-        public int mapiport = 123;
+        public bool smtptls = false;
         public string smtpuser = "";
         public string smtppass = "";
+        public string mapiaddress = "";
+        public string mapiserver = "";
+        public int mapiport = 123;
         public string mapiuser = "";
         public string mapipass = "";
         public int mailtimer = 0;

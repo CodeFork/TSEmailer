@@ -4,5 +4,6 @@
     <StartAction>Program</StartAction>
     <StartProgram>C:\TerApps\Bin\TShock\TerrariaServer.exe</StartProgram>
     <StartWorkingDirectory>C:\TerApps\Bin\TShock\</StartWorkingDirectory>
+    <StartArguments>-world c:\TerApps\Worlds\World3.wld -priority 1</StartArguments>
   </PropertyGroup>
 </Project>
