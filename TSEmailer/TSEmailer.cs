@@ -46,6 +46,7 @@ using System.Collections.Generic;
 using System.Data;
 using sqlProvider;
 using smtpWrapper;
+using System.Net.Mail;
 
 namespace TSEmailer
 {
@@ -90,6 +91,7 @@ namespace TSEmailer
             TSESql = new TSdb();
             InitSMTP();
             Commands.ChatCommands.Add(new Command("", OnEmail, "email"));
+            Hooks.ServerHooks.Join += OnJoin;
         }
 
         private void OnEmail(CommandArgs args)
@@ -107,19 +109,19 @@ namespace TSEmailer
                         SetAddress(args.Player, args.Parameters[1]);
                         break;
                     case "players":
-                        args.Player.SendMessage("/email players - A work in progress...>", ErrColor);
+                        PlayerSetting(args.Player, args.Parameters[1]);
                         break;
                     case "admins":
-                        args.Player.SendMessage("/email admins - A work in progress...>", ErrColor);
+                        AdminSetting(args.Player, args.Parameters[1]);
                         break;
                     case "eblast":
-                        args.Player.SendMessage("/email eblast - A work in progress...>", ErrColor);
+                        EblastSetting(args.Player, args.Parameters[1]);
                         break;
                     case "reply":
-                        args.Player.SendMessage("/email reply - A work in progress...>", ErrColor);
+                        ReplySetting(args.Player, args.Parameters[1]);
                         break;
                     case "notify":
-                        args.Player.SendMessage("/email address - A work in progress...>", ErrColor);
+                        NotifySetting(args.Player, args.Parameters[1]);
                         break;
                     case "onjoin":
                         SetOnJoin(args.Player, args.Parameters[1]);
@@ -157,6 +159,34 @@ namespace TSEmailer
             }
         }
 
+        private void OnJoin(int who, HandledEventArgs args)
+        {
+            TSPlayer player = TShock.Players[who];
+            int pIndex = TSESql.GetPlayerIndex(player.UserID);
+            //Checks for OnJoin email sending
+            if (pIndex == -1)
+            {
+                player.SendMessage("This server is equiped with TSEmailer.", Color.Plum);
+                player.SendMessage("TShock Terraria Email System!", Color.Plum);
+                player.SendMessage("More Details: /email help", Color.Plum);
+                return;
+            }
+            if (!TSESql.GetAllowNotify(pIndex))
+            {
+                player.SendMessage("TSEmailer: Notifications will not be sent per your settings...", Color.Blue);
+                return;
+            }
+            /*
+             * #### Insert timer or sleep code HERE! ####
+             player.SendMessage("TSEmailer: notifications will be sent in " + TSEConfig.jointimer.ToString() + " seconds...", Color.Plum);
+            */
+            TSEsender.SendEmail(
+                TSESql.GetPlayerEmail(pIndex),
+                TSESql.GetOnJoinEmails(player.UserID),
+                "TShock Terraria Server - TSEmailer",
+                "Terraria player: " + player.Name + " has joined the server!");
+        }
+
         private void SetAddress(TSPlayer player, string address)
         {
             if (player != null)
@@ -172,33 +202,146 @@ namespace TSEmailer
             }
         }
 
+        private void PlayerSetting(TSPlayer player, string value)
+        {
+            if (player != null)
+            {
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                if (value != "")
+                {
+                    TSESql.SetAllowPlayers(index, value);
+                    player.SendMessage("Settings updated!", Color.Red);
+                }
+                player.SendMessage("Players can email you: " + TSESql.GetAllowPlayers(TSESql.GetPlayerIndex(player.UserID)), Color.Blue);
+            }
+        }
+
+        private void AdminSetting(TSPlayer player, string value)
+        {
+            if (player != null)
+            {
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                if (value != "")
+                {
+                    TSESql.SetAllowAdmins(index, value);
+                    player.SendMessage("Settings updated!", Color.Red);
+                }
+                player.SendMessage("Admins can email you: " + TSESql.GetAllowAdmins(TSESql.GetPlayerIndex(player.UserID)), Color.Blue);
+            }
+        }
+
+        private void EblastSetting(TSPlayer player, string value)
+        {
+            if (player != null)
+            {
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                if (value != "")
+                {
+                    TSESql.SetAllowEblast(index, value);
+                    player.SendMessage("Settings updated!", Color.Red);
+                }
+                player.SendMessage("You can receive email blasts: " + TSESql.GetAllowEblast(TSESql.GetPlayerIndex(player.UserID)), Color.Blue);
+            }
+        }
+
+        private void ReplySetting(TSPlayer player, string value)
+        {
+            if (player != null)
+            {
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                if (value != "")
+                {
+                    TSESql.SetAllowReply(index, value);
+                    player.SendMessage("Settings updated!", Color.Red);
+                }
+                player.SendMessage("Players can reply directly to your email: " + TSESql.GetAllowReply(TSESql.GetPlayerIndex(player.UserID)), Color.Blue);
+            }
+        }
+
+        private void NotifySetting(TSPlayer player, string value)
+        {
+            if (player != null)
+            {
+                int index = TSESql.GetPlayerIndex(player.UserID);
+                if (index == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                if (value != "")
+                {
+                    TSESql.SetAllowNotify(index, value);
+                    player.SendMessage("Settings updated!", Color.Red);
+                }
+                player.SendMessage("Allow others to be notified when you join the server: " + TSESql.GetAllowNotify(TSESql.GetPlayerIndex(player.UserID)), Color.Blue);
+            }
+        }
+
         private void SendEmail(TSPlayer player, string rcptPlayer, string body)
         {
             Color ErrColor = Color.Plum;
+            int pIndex = TSESql.GetPlayerIndex(player.UserID);
+            int rcptIndex = TSESql.GetPlayerIndex(rcptPlayer);
 
-            if (TSESql.GetPlayerIndex(player.UserID) != -1)
+            if (pIndex == -1)
             {
-                int rcptIndex = TSESql.GetPlayerIndex(rcptPlayer);
-                if (rcptIndex != -1)
-                {
-                    
-                }
-                else
-                {
-                    player.SendMessage("The player specified isn't registered with the server!", ErrColor);
-                }
+                NotRegistered(player);
+                return;
             }
-            else
+            if (rcptIndex == -1)
             {
-                player.SendMessage("Your email address is not registered with the server!", ErrColor);
+                NotRegistered(player, rcptPlayer);
+                return;
             }
+            player.SendMessage("Need Permission Checks... Not Emailing.", Color.Red);
         }
 
         private void SetOnJoin(TSPlayer player, string PlayerName)
         {
             if (player != null)
             {
-                player.SendMessage(TSESql.SetOnJoinAddress(player.UserID, PlayerName), Color.Blue);
+                int curIndex = TSESql.GetPlayerIndex(player.UserID);
+                int plIndex = TSESql.GetPlayerIndex(PlayerName);
+                //check curPlayerID has email address set
+                if (curIndex == -1)
+                {
+                    NotRegistered(player);
+                    return;
+                }
+                //check PlayerName has email address registered
+                if (plIndex == -1)
+                {
+                    NotRegistered(player, PlayerName);
+                    return;
+                }
+                TSESql.SetOnJoinAddress(curIndex, player.Name, plIndex);
+                if (!TSESql.GetAllowNotify(plIndex))
+                {
+                    player.SendMessage(PlayerName + " does not allow you to be notified.", Color.Red);
+                    return;
+                }
+                player.SendMessage("You will be notified when " + PlayerName + " joins the server.", Color.Blue);
+                
             }
         }
 
@@ -208,22 +351,30 @@ namespace TSEmailer
             {
                 Color ErrColor = Color.Blue;
                 int index = TSESql.GetPlayerIndex(player.UserID);
-                if (index != -1)
+                if (index == -1)
                 {
-                    List<SqlValue> settings = TSESql.GetSettings(index);
-                    player.SendMessage("Your email address: " + settings[1].Value.ToString(), ErrColor);
-                    player.SendMessage("Players can email you: " + settings[2].Value.ToString(), ErrColor);
-                    player.SendMessage("Admins can email you: " + settings[3].Value.ToString(), ErrColor);
-                    player.SendMessage("You can receive email blasts: " + settings[4].Value.ToString(), ErrColor);
-                    player.SendMessage("Players can reply directly to your email: " + settings[5].Value.ToString(), ErrColor);
-                    player.SendMessage("Allow others to be notified when you join the server: " + settings[6].Value.ToString(), ErrColor);
+                    NotRegistered(player);
+                    return;
                 }
-                else
-                {
-                    player.SendMessage("You have not registered with the server!", ErrColor);
-                }
-                
+                List<SqlValue> settings = TSESql.GetSettings(index);
+                player.SendMessage("Your email address: " + settings[1].Value.ToString(), ErrColor);
+                player.SendMessage("Players can email you: " + settings[2].Value.ToString(), ErrColor);
+                player.SendMessage("Admins can email you: " + settings[3].Value.ToString(), ErrColor);
+                player.SendMessage("You can receive email blasts: " + settings[4].Value.ToString(), ErrColor);
+                player.SendMessage("Players can reply directly to your email: " + settings[5].Value.ToString(), ErrColor);
+                player.SendMessage("Allow others to be notified when you join the server: " + settings[6].Value.ToString(), ErrColor);
             }
+        }
+
+        public static void NotRegistered(TSPlayer player, string PlayerName)
+        {
+            player.SendMessage("Player, " + player.Name + " has not registered with the server!", Color.Red);
+        }
+
+        public static void NotRegistered(TSPlayer player)
+        {
+            player.SendMessage("You have not registered with the server!", Color.Red);
+            player.SendMessage("To Register: /email address <youremail@yourdomain.com>", Color.Red);
         }
 
         public static void SendTestEmail(string recipient)
