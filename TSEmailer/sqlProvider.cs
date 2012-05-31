@@ -6,6 +6,7 @@ using Community.CsharpSqlite;
 using Community.CsharpSqlite.SQLiteClient;
 using System.Data;
 using System.Collections.Generic;
+using System.Net.Mail;
 
 namespace sqlProvider
 {
@@ -29,35 +30,42 @@ namespace sqlProvider
                 new SqlColumn("admins", MySqlDbType.Text) { Length = 10, DefaultValue = "true" },
                 new SqlColumn("eblast", MySqlDbType.Text) { Length = 10, DefaultValue = "true" },
                 new SqlColumn("reply", MySqlDbType.Text) { Length = 10, DefaultValue = "true" },
-                new SqlColumn("notify", MySqlDbType.Text) { Length = 10, DefaultValue = "true" },
-                new SqlColumn("onjoin", MySqlDbType.Text) { Length = 250 }
+                new SqlColumn("notify", MySqlDbType.Text) { Length = 10, DefaultValue = "true" }
                 );
             SetupDBTable();
         }
 
-        public DataTable GetOnJoinEmails(int PlayerID)
+        public MailAddressCollection GetOnJoinEmails(int PlayerID)
         {
-            if (GetPlayerIndex(PlayerID) != -1)
+            //Log.Info("Getting list of onjoin emails matching PlayerID:" + PlayerID);
+            List<SqlValue> wheres = new List<SqlValue>{
+                    NewSQLV("PlayerID", PlayerID),
+                    NewSQLV("RecordType",2)};
+            List<Object> addresses = SQLEditor.ReadColumn(TSEtable.Name, "address", wheres);
+            List<Object> names = SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", wheres);
+            if (addresses.Count > 0)
             {
-                List<String> columns = new List<String>{"PlayerName","address"};
-                List<SqlValue> wheres = new List<SqlValue>{
-                    new SqlValue("PlayerID", PlayerID),
-                    new SqlValue("RecordType",2)};
-                return GetDataTable(columns, wheres);
+                MailAddressCollection thisList = new MailAddressCollection();
+                for (int i = 0; i < addresses.Count; i++)
+                {
+                    thisList.Add(new MailAddress(addresses[i].ToString(), names[i].ToString()));
+                }
+                return thisList;
             }
-            return new DataTable();
+                return new MailAddressCollection();
         }
 
         public List<SqlValue> GetSettings(int PlayerIndex)
         {
+            List<SqlValue> wheres = new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex), NewSQLV("RecordType", 1) };
             List<SqlValue> settings = new List<SqlValue>();
-            settings.Add(new SqlValue("PlayerName", SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("address", SQLEditor.ReadColumn(TSEtable.Name, "address", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("players", SQLEditor.ReadColumn(TSEtable.Name, "players", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("admins", SQLEditor.ReadColumn(TSEtable.Name, "admins", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("eblast", SQLEditor.ReadColumn(TSEtable.Name, "eblast", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("reply", SQLEditor.ReadColumn(TSEtable.Name, "reply", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
-            settings.Add(new SqlValue("notify", SQLEditor.ReadColumn(TSEtable.Name, "notify", new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0]));
+            settings.Add(NewSQLV("PlayerName", SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", wheres)[0].ToString()));
+            settings.Add(NewSQLV("address", SQLEditor.ReadColumn(TSEtable.Name, "address", wheres)[0].ToString()));
+            settings.Add(NewSQLV("players", SQLEditor.ReadColumn(TSEtable.Name, "players", wheres)[0].ToString()));
+            settings.Add(NewSQLV("admins", SQLEditor.ReadColumn(TSEtable.Name, "admins", wheres)[0].ToString()));
+            settings.Add(NewSQLV("eblast", SQLEditor.ReadColumn(TSEtable.Name, "eblast", wheres)[0].ToString()));
+            settings.Add(NewSQLV("reply", SQLEditor.ReadColumn(TSEtable.Name, "reply", wheres)[0].ToString()));
+            settings.Add(NewSQLV("notify", SQLEditor.ReadColumn(TSEtable.Name, "notify", wheres)[0].ToString()));
             return settings;
         }
 
@@ -66,114 +74,161 @@ namespace sqlProvider
             return GetSettings(GetPlayerIndex(PlayerName));
         }
 
-        public bool GetAllowPlayers(int PlayerIndex)
+        public List<String> GetOnJoinList(int PlayerIndex)
         {
-            return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "players", 
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0].ToString());
+            // Retrieve list of player names
+            List<String> PlayerList = new List<String>();
+
+            //Log.Info("TSdb.GetOnJoinList - Preparing to get playerID");
+            string playerID = SQLEditor.ReadColumn(TSEtable.Name, "PlayerID", new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex), NewSQLV("RecordType", 1) })[0].ToString();
+
+            //Log.Info("TSdb.GetOnJoinList - playerID= '" + playerID + "' . Preparing to get lstValues");
+            List<Object> LstValues = SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", new List<SqlValue> { NewSQLV("PlayerID", playerID), NewSQLV("RecordType", 2) });
+
+            //Log.Info("TSdb.GetOnJoinList - Found count:" + LstValues.Count.ToString() + " LstValues. Loading values into PlayerList");
+            foreach (object value in LstValues)
+            {
+                //Log.Info("TSdb.GetOnJoinList - PlayerList adding: " + value.ToString());
+                PlayerList.Add(value.ToString());
+            }
+            return PlayerList;
         }
 
-        public void SetAllowPlayers(int PlayerIndex, string value)
+        public List<String> GetOnJoinList(string PlayerName)
         {
-            SQLEditor.UpdateValues(TSEtable.Name, 
-                new List<SqlValue>{ new SqlValue("players",value)}, 
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) });
+            return GetOnJoinList(GetPlayerIndex(PlayerName));
+        }
+
+        public bool GetAllowPlayers(int PlayerIndex)
+        {
+            return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "players",
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) })[0].ToString());
+        }
+
+        public void SetAllowPlayers(int PlayerIndex, bool value)
+        {
+            SQLEditor.UpdateValues(TSEtable.Name,
+                new List<SqlValue> { NewSQLV("players", value) },
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) });
         }
 
         public bool GetAllowAdmins(int PlayerIndex)
         {
             return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "admins", 
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0].ToString());
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) })[0].ToString());
         }
 
-        public void SetAllowAdmins(int PlayerIndex, string value)
+        public void SetAllowAdmins(int PlayerIndex, bool value)
         {
             SQLEditor.UpdateValues(TSEtable.Name,
-                new List<SqlValue> { new SqlValue("admins", value) },
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) });
+                new List<SqlValue> { NewSQLV("admins", value) },
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) });
         }
 
         public bool GetAllowEblast(int PlayerIndex)
         {
             return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "eblast", 
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0].ToString());
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) })[0].ToString());
         }
 
-        public void SetAllowEblast(int PlayerIndex, string value)
+        public void SetAllowEblast(int PlayerIndex, bool value)
         {
             SQLEditor.UpdateValues(TSEtable.Name,
-                new List<SqlValue> { new SqlValue("eblast", value) },
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) });
+                new List<SqlValue> { NewSQLV("eblast", value) },
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) });
         }
 
         public bool GetAllowReply(int PlayerIndex)
         {
             return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "reply",
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0].ToString());
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) })[0].ToString());
         }
 
-        public void SetAllowReply(int PlayerIndex, string value)
+        public void SetAllowReply(int PlayerIndex, bool value)
         {
             SQLEditor.UpdateValues(TSEtable.Name,
-                new List<SqlValue> { new SqlValue("reply", value) },
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) });
+                new List<SqlValue> { NewSQLV("reply", value) },
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) });
         }
 
         public bool GetAllowNotify(int PlayerIndex)
         {
             return Boolean.Parse(SQLEditor.ReadColumn(TSEtable.Name, "notify",
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) })[0].ToString());
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) })[0].ToString());
         }
 
-        public void SetAllowNotify(int PlayerIndex, string value)
+        public void SetAllowNotify(int PlayerIndex, bool value)
         {
             SQLEditor.UpdateValues(TSEtable.Name,
-                new List<SqlValue> { new SqlValue("notify", value) },
-                new List<SqlValue> { new SqlValue("TSEindex", PlayerIndex) });
+                new List<SqlValue> { NewSQLV("notify", value) },
+                new List<SqlValue> { NewSQLV("TSEindex", PlayerIndex) });
         }
 
-        public List<SqlValue> GetPlayerEmail(int index)
+        public MailAddress GetPlayerEmail(int index)
         {
-            List<SqlValue> settings = new List<SqlValue>();
-            settings.Add(new SqlValue("PlayerName", SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", new List<SqlValue> { new SqlValue("TSEindex", index) })[0]));
-            settings.Add(new SqlValue("address", SQLEditor.ReadColumn(TSEtable.Name, "address", new List<SqlValue> { new SqlValue("TSEindex", index) })[0]));
-
-            return settings;
+            return new MailAddress(
+                SQLEditor.ReadColumn(TSEtable.Name, "address", new List<SqlValue> { NewSQLV("TSEindex", index) })[0].ToString(),
+                SQLEditor.ReadColumn(TSEtable.Name, "PlayerName", new List<SqlValue> { NewSQLV("TSEindex", index) })[0].ToString()
+                );
         }
 
         public void SetOnJoinAddress(int curPlayerIndex, string curPlayerName, int onjPlayerIndex)
         {
-            string curAddress = SQLEditor.ReadColumn(TSEtable.Name, "address",
-                new List<SqlValue> { new SqlValue("TSEindex", curPlayerIndex) })[0].ToString();
+            string curAddress = GetPlayerEmail(curPlayerIndex).Address;
 
             string onjPlayerID = SQLEditor.ReadColumn(TSEtable.Name, "PlayerID",
-                new List<SqlValue> { new SqlValue("TSEindex", onjPlayerIndex) })[0].ToString();
+                new List<SqlValue> { NewSQLV("TSEindex", onjPlayerIndex) })[0].ToString();
             //set OnJoin address as RecordType = 2
             SQLEditor.InsertValues(TSEtable.Name, new List<SqlValue>{
-                new SqlValue("RecordType",2),
-                new SqlValue("PlayerID",onjPlayerID),
-                new SqlValue("PlayerName",curPlayerName),
-                new SqlValue("address",curAddress)});
+                NewSQLV("RecordType",2),
+                NewSQLV("PlayerID",onjPlayerID),
+                NewSQLV("PlayerName",curPlayerName),
+                NewSQLV("address",curAddress)});
+        }
+
+        public bool RemoveOnJoinAddress(int curPlayerIndex, int onjPlayerIndex)
+        {
+            string onjPlayerID = SQLEditor.ReadColumn(TSEtable.Name, "PlayerID",
+                new List<SqlValue> { NewSQLV("TSEindex", onjPlayerIndex) })[0].ToString();
+
+            string curPlayerAddress = GetPlayerEmail(curPlayerIndex).Address;
+
+            List<SqlValue> where = new List<SqlValue> { NewSQLV("PlayerID", onjPlayerID), NewSQLV("RecordType", 2), NewSQLV("Address", curPlayerAddress) };
+            if (SQLEditor.ReadColumn(TSEtable.Name, "TSEindex", where).Count > 0)
+            {
+                SQLWriter.DeleteRow(TSEtable.Name, where);
+                return true;
+            }
+            return false;
         }
 
         public string SetPlayerAddress(TSPlayer player, string address)
         {
             //Get the index of the players account settings
-            Int32 plIndex = GetPlayerIndex(player.UserID);
+            Int32 plIndex = GetPlayerIndex(player.Name);
 
             if (plIndex != -1)
             {
                 SQLEditor.UpdateValues(TSEtable.Name, new List<SqlValue> { 
-                    new SqlValue("Address", address), new SqlValue("PlayerName", player.Name) },
-                    new List<SqlValue> { new SqlValue("TSEindex", plIndex) });
+                    NewSQLV("Address", address), NewSQLV("PlayerName", player.Name) },
+                    new List<SqlValue> { NewSQLV("TSEindex", plIndex) });
                 return "Your email address has been updated.";
             }
             else
             {
+                int NewPlayerID = GetNextTSEPlayerID();
+                
                 List<SqlValue> values = new List<SqlValue>{
-                    new SqlValue("PlayerID", player.UserID),
-                    new SqlValue("PlayerName", player.Name),
-                    new SqlValue("RecordType",1),
-                    new SqlValue("Address", address)};
+                    NewSQLV("PlayerID", NewPlayerID),
+                    NewSQLV("PlayerName", player.Name),
+                    NewSQLV("RecordType",1),
+                    NewSQLV("Address", address),
+                    NewSQLV("players",true),
+                    NewSQLV("admins",true),
+                    NewSQLV("eblast",true),
+                    NewSQLV("reply",true),
+                    NewSQLV("notify",true)
+                };
                 SQLEditor.InsertValues(TSEtable.Name, values);
                 return "Your email address is now registered with the server.";
             }
@@ -181,10 +236,11 @@ namespace sqlProvider
 
         public string RemoveAddress(TSPlayer player)
         {
-            Int32 index = GetPlayerIndex(player.UserID);
+            Int32 index = GetPlayerIndex(player.Name);
             if (index != -1)
             {
-                SQLWriter.DeleteRow(TSEtable.Name, new List<SqlValue> { new SqlValue("TSEindex", index) });
+                int PlayerID = GetTSEPlayerID(index);
+                SQLWriter.DeleteRow(TSEtable.Name, new List<SqlValue> { NewSQLV("PlayerID", PlayerID) });
                 return "Your account settings have been removed from the server!";
             }
             return "Your account does not exist on the server!";
@@ -193,10 +249,11 @@ namespace sqlProvider
         public Int32 GetPlayerIndex(string PlayerName)
         {
             List<SqlValue> values = new List<SqlValue>(){
-                new SqlValue("PlayerName", PlayerName),
-                new SqlValue("RecordType",1)
+                NewSQLV("PlayerName", PlayerName),
+                NewSQLV("RecordType",1)
                  };
             List<Object> results = SQLEditor.ReadColumn(TSEtable.Name, "TSEindex", values);
+            
             if (results.Count > 0)
             {
                 return Int32.Parse(results[0].ToString());
@@ -205,19 +262,35 @@ namespace sqlProvider
             return -1;
         }
 
-        public Int32 GetPlayerIndex(int playerID)
+        public Int32 GetTSEPlayerID(int PlayerIndex)
         {
             List<SqlValue> values = new List<SqlValue>(){
-                new SqlValue("PlayerID", playerID),
-                new SqlValue("RecordType",1)
-                 };
-            List<Object> results = SQLEditor.ReadColumn(TSEtable.Name, "TSEindex", values);
+                    NewSQLV("TSEindex", PlayerIndex),
+                    NewSQLV("RecordType",1)
+                     };
+            List<Object> results = SQLEditor.ReadColumn(TSEtable.Name, "PlayerID", values);
             if (results.Count > 0)
             {
                 return Int32.Parse(results[0].ToString());
             }
             // Return -1 if the player is not registered
             return -1;
+        }
+
+        
+
+        public Int32 GetNextTSEPlayerID()
+        {
+            List<SqlValue> wheres = new List<SqlValue>(){
+                NewSQLV("RecordType",1)
+                 };
+            List<Object> results = SQLEditor.ReadColumn(TSEtable.Name, "PlayerID", wheres);
+
+            if (results.Count > 0)
+            {
+                return Int32.Parse(results[results.Count - 1].ToString()) + 1;
+            }
+            return 1;
         }
 
         public DataTable GetDataTable(List<SqlValue> wheres)
@@ -248,9 +321,10 @@ namespace sqlProvider
             for (int i = 0; i < columns.Count; i++)
             {
                 int j = TSEtable.Columns.FindIndex((e)=> {return (e.Name == columns[i]);});
-                table.Columns.Add(TSEtable.Columns[j].Name.ToString(), TSEtable.Columns[j].Type.GetType());
+                
+                table.Columns.Add(TSEtable.Columns[j].Name, TSEtable.Columns[j].Type.GetType());
 
-                List<object> colValues = SQLEditor.ReadColumn(TSEtable.Name.ToString(), TSEtable.Columns[j].Name.ToString(), wheres);
+                List<object> colValues = SQLEditor.ReadColumn(TSEtable.Name, TSEtable.Columns[j].Name, wheres);
 
                 for (int x = 0; x < colValues.Count; x++)
                 {
@@ -263,6 +337,31 @@ namespace sqlProvider
             }
 
             return table;
+        }
+
+        public SqlValue NewSQLV(string Column, string Value)
+        {
+            return new SqlValue(Column, "'" + Value + "'");
+        }
+
+        public SqlValue NewSQLV(string Column, int Value)
+        {
+            return new SqlValue(Column, Value);
+        }
+
+        public SqlValue NewSQLV(string Column, bool Value)
+        {
+            string ValueBol = "False";
+            if (Value)
+            {
+                ValueBol = "True";
+            }
+            return new SqlValue(Column, "'" + ValueBol + "'");
+        }
+
+        public SqlValue NewSQLV(string Column, object Value)
+        {
+            return new SqlValue(Column, "'" + Value + "'");
         }
         
         public static void SetupDBTable()

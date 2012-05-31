@@ -3,6 +3,7 @@ using System.Net;
 using System.Data;
 using System.Net.Mail;
 using System.Collections.Generic;
+using TShockAPI;
 using TShockAPI.DB;
 
 namespace smtpWrapper
@@ -23,25 +24,32 @@ namespace smtpWrapper
             tseClient.EnableSsl = tseTLS;
         }
 
-        public void SendEmail(MailAddress from, List<MailAddress> to, List<MailAddress> cc, List<MailAddress> bcc, string subj, string body)
+        public void Dispose()
+        {
+            tseClient.Dispose();
+        }
+
+        public void SendEmail(MailAddress from, MailAddressCollection to, MailAddressCollection cc, MailAddressCollection bcc, string subj, string body)
         {
             MailMessage msg = new MailMessage();
-            foreach(MailAddress add in to)
+            foreach(MailAddress item in to)
             {
-                msg.To.Add(add);
+                msg.To.Add(item);
             }
-            foreach (MailAddress add in cc)
+            foreach (MailAddress item in cc)
             {
-                msg.CC.Add(add);
+                msg.CC.Add(item);
             }
-            foreach (MailAddress add in bcc)
+            foreach (MailAddress item in bcc)
             {
-                msg.Bcc.Add(add);
+                msg.Bcc.Add(item);
             }
             msg.From = from;
             msg.Sender = from;
+            Log.Info("Preparing message FROM " + from.DisplayName + " at address " + from.Address);
             msg.Subject = subj;
             msg.Body = body;
+            Log.Info("Sending email message...");
             try
             {
                 tseClient.Send(msg);
@@ -52,29 +60,7 @@ namespace smtpWrapper
             }
         }
 
-        public void SendEmail(List<SqlValue> from, DataTable bcc, string subj, string body)
-        {
-            MailMessage msg = new MailMessage();
-            //Load player names and email addresses into a usable list
-            foreach (DataRow row in bcc.Rows)
-            {
-                msg.Bcc.Add(new MailAddress(row.ItemArray[1].ToString(), row.ItemArray[0].ToString()));
-            }
-            msg.From = new MailAddress(from[1].ToString(),from[0].ToString());
-            msg.Sender = new MailAddress(from[1].ToString(), from[0].ToString());
-            msg.Subject = subj;
-            msg.Body = body;
-            try
-            {
-                tseClient.Send(msg);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-        }
-
-        public string SendEmail(string to, string from, string subject, string body)
+        public string SendEmail(string from, string to, string subject, string body)
         {
             MailMessage msg = new MailMessage(from, to, subject, body);
             try
